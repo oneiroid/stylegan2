@@ -7,10 +7,7 @@ import PIL.Image as Im
 import numpy as np
 import tensorflow as tf
 import cv2
-from encoder.generator_model import Generator
-from lib_oneiro import utils_stylegan as ust
 import matplotlib.pyplot as plt
-
 
 CLIP_LIM = 2.
 
