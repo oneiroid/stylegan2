@@ -15,7 +15,7 @@ from training import misc
 
 class Projector:
     def __init__(self):
-        self.num_steps                  = 2000
+        self.num_steps                  = 1500
         self.dlatent_avg_samples        = 10000
         self.initial_learning_rate      = 0.1
         self.initial_noise_factor       = 0.05
@@ -23,7 +23,7 @@ class Projector:
         self.lr_rampup_length           = 0.05
         self.noise_ramp_length          = 0.75
         self.regularize_noise_weight    = 1e5
-        self.verbose                    = True
+        self.verbose                    = False
         self.clone_net                  = True
 
         self._Gs                    = None
@@ -64,7 +64,7 @@ class Projector:
         self._info('Finding W midpoint and stddev using %d samples...' % self.dlatent_avg_samples)
         latent_samples = np.random.RandomState(123).randn(self.dlatent_avg_samples, *self._Gs.input_shapes[0][1:])
         dlatent_samples = self._Gs.components.mapping.run(latent_samples, None) # [N, 1, 512]
-        self._dlatent_avg = np.mean(dlatent_samples, axis=0, keepdims=True) # [1, 1, 512]
+        self._dlatent_avg = np.mean(dlatent_samples, axis=0, keepdims=True) # [1, 18, 512]
         self._dlatent_std = (np.sum((dlatent_samples - self._dlatent_avg) ** 2) / self.dlatent_avg_samples) ** 0.5
         self._info('std = %g' % self._dlatent_std)
 
