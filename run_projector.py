@@ -67,11 +67,14 @@ def project_generated_images(network_pkl, seeds, num_snapshots, truncation_psi):
 
 #----------------------------------------------------------------------------
 
-def project_real_images(network_pkl, dataset_name, data_dir, num_images, num_snapshots):
+def project_real_images(network_pkl, dataset_name, data_dir, num_images, num_snapshots, lr_shrink_len, lr_grow_len, lr_init):
     print('Loading networks from "%s"...' % network_pkl)
     _G, _D, Gs = pretrained_networks.load_networks(network_pkl)
     proj = projector.Projector()
     proj.set_network(Gs)
+    proj.initial_learning_rate = lr_init
+    proj.lr_rampdown_length = lr_shrink_len
+    proj.lr_rampup_length = lr_grow_len
 
     print('Loading images from "%s"...' % dataset_name)
     dataset_obj = dataset.load_dataset(data_dir=data_dir, tfrecord_dir=dataset_name, max_label_size=0, repeat=False, shuffle_mb=0)
@@ -130,6 +133,9 @@ Run 'python %(prog)s <subcommand> --help' for subcommand help.''',
     project_real_images_parser = subparsers.add_parser('project-real-images', help='Project real images')
     project_real_images_parser.add_argument('--network', help='Network pickle filename', dest='network_pkl', required=True)
     project_real_images_parser.add_argument('--data-dir', help='Dataset root directory', required=True)
+    project_real_images_parser.add_argument('--lr-init', help='Initial learning rate', default=0.1)
+    project_real_images_parser.add_argument('--lr-grow-len', help='LR growth length', default=0.05)
+    project_real_images_parser.add_argument('--lr-shrink-len', help='LR shrink length', default=0.25)
     project_real_images_parser.add_argument('--dataset', help='Training dataset', dest='dataset_name', required=True)
     project_real_images_parser.add_argument('--num-snapshots', type=int, help='Number of snapshots (default: %(default)s)', default=5)
     project_real_images_parser.add_argument('--num-images', type=int, help='Number of images to project (default: %(default)s)', default=3)

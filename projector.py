@@ -8,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 import dnnlib
 import dnnlib.tflib as tflib
+import PIL.Image as Im
 
 from training import misc
 
@@ -15,7 +16,7 @@ from training import misc
 
 class Projector:
     def __init__(self):
-        self.num_steps                  = 1500
+        self.num_steps                  = 2000
         self.dlatent_avg_samples        = 10000
         self.initial_learning_rate      = 0.1
         self.initial_noise_factor       = 0.05
@@ -23,7 +24,7 @@ class Projector:
         self.lr_rampup_length           = 0.05
         self.noise_ramp_length          = 0.75
         self.regularize_noise_weight    = 1e5
-        self.verbose                    = False
+        self.verbose                    = True
         self.clone_net                  = True
 
         self._Gs                    = None
@@ -97,18 +98,23 @@ class Projector:
         self._images_expr = self._Gs.components.synthesis.get_output_for(self._dlatents_expr, randomize_noise=False)
 
         # Downsample image to 256x256 if it's larger than that. VGG was built for 224x224 images.
-        proc_images_expr = (self._images_expr + 1) * (255 / 2)
-        sh = proc_images_expr.shape.as_list()
+        proc_images_expr_orig = (self._images_expr + 1) * (255 / 2)
+        sh = proc_images_expr_orig.shape.as_list()
         if sh[2] > 256:
             factor = sh[2] // 256
-            proc_images_expr = tf.reduce_mean(tf.reshape(proc_images_expr, [-1, sh[1], sh[2] // factor, factor, sh[2] // factor, factor]), axis=[3,5])
+            proc_images_expr = tf.reduce_mean(tf.reshape(proc_images_expr_orig, [-1, sh[1], sh[2] // factor, factor, sh[2] // factor, factor]), axis=[3,5])
+        else:
+            proc_images_expr = proc_images_expr_orig
+
+        img_mask = Im.open('./assets/masks/mask_1024_soft.png').resize((256, 256))
+        img_mask_np = np.reshape(img_mask.convert('L'), newshape=(1, 256, 256, 1)) / 255
 
         # Loss graph.
         self._info('Building loss graph...')
         self._target_images_var = tf.Variable(tf.zeros(proc_images_expr.shape), name='target_images_var')
         if self._lpips is None:
-            self._lpips = misc.load_pkl('https://drive.google.com/uc?id=1N2-m9qszOeVC9Tq77WxsLnuWwOedQiD2') # vgg16_zhang_perceptual.pkl
-        self._dist = self._lpips.get_output_for(proc_images_expr, self._target_images_var)
+            self._lpips = misc.load_pkl('http://d36zk2xti64re0.cloudfront.net/stylegan1/networks/metrics/vgg16_zhang_perceptual.pkl') # vgg16_zhang_perceptual.pkl
+        self._dist = self._lpips.get_output_for(proc_images_expr * img_mask_np, self._target_images_var * img_mask_np)
         self._loss = tf.reduce_sum(self._dist)
 
         # Noise regularization graph.
@@ -124,6 +130,8 @@ class Projector:
                 v = tf.reduce_mean(v, axis=[3, 5])
                 sz = sz // 2
         self._loss += reg_loss * self.regularize_noise_weight
+
+        # Plain pixel loss
 
         # Optimizer.
         self._info('Setting up optimizer...')
