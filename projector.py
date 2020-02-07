@@ -16,8 +16,9 @@ from training import misc
 
 class Projector:
     def __init__(self):
-        self.num_steps                  = 2000
+        self.num_steps                  = 1000
         self.dlatent_avg_samples        = 10000
+        self.img_size                   = 512
         self.initial_learning_rate      = 0.1
         self.initial_noise_factor       = 0.05
         self.lr_rampdown_length         = 0.25
@@ -100,21 +101,29 @@ class Projector:
         # Downsample image to 256x256 if it's larger than that. VGG was built for 224x224 images.
         proc_images_expr_orig = (self._images_expr + 1) * (255 / 2)
         sh = proc_images_expr_orig.shape.as_list()
-        if sh[2] > 256:
-            factor = sh[2] // 256
+        if sh[2] > self.img_size:
+            factor = sh[2] // self.img_size
             proc_images_expr = tf.reduce_mean(tf.reshape(proc_images_expr_orig, [-1, sh[1], sh[2] // factor, factor, sh[2] // factor, factor]), axis=[3,5])
         else:
             proc_images_expr = proc_images_expr_orig
 
-        img_mask = Im.open('./assets/masks/mask_1024_soft.png').resize((256, 256))
-        img_mask_np = np.reshape(img_mask.convert('L'), newshape=(1, 256, 256, 1)) / 255
+        img_mask = Im.open('./assets/masks/mask_1024_softscaled.png').resize((self.img_size, self.img_size))
+        img_mask_rgb_np = np.reshape(img_mask.convert('RGB'), newshape=(1, self.img_size, self.img_size, 3)) / 255
+
+        proc_images_nhwc_expr = tf.transpose(proc_images_expr, (0, 2, 3, 1))
+        proc_images_masked_nhwc_expr = proc_images_nhwc_expr * img_mask_rgb_np
+        proc_images_masked_expr = tf.transpose(proc_images_masked_nhwc_expr, (0, 3, 1, 2))
 
         # Loss graph.
         self._info('Building loss graph...')
         self._target_images_var = tf.Variable(tf.zeros(proc_images_expr.shape), name='target_images_var')
+        targ_images_nhwc_expr = tf.transpose(self._target_images_var, (0, 2, 3, 1))
+        targ_images_masked_nhwc_expr = targ_images_nhwc_expr * img_mask_rgb_np
+        targ_images_masked_expr = tf.transpose(targ_images_masked_nhwc_expr, (0, 3, 1, 2))
         if self._lpips is None:
             self._lpips = misc.load_pkl('http://d36zk2xti64re0.cloudfront.net/stylegan1/networks/metrics/vgg16_zhang_perceptual.pkl') # vgg16_zhang_perceptual.pkl
-        self._dist = self._lpips.get_output_for(proc_images_expr * img_mask_np, self._target_images_var * img_mask_np)
+
+        self._dist = self._lpips.get_output_for(proc_images_masked_expr, targ_images_masked_expr)
         self._loss = tf.reduce_sum(self._dist)
 
         # Noise regularization graph.
@@ -132,6 +141,7 @@ class Projector:
         self._loss += reg_loss * self.regularize_noise_weight
 
         # Plain pixel loss
+        self._loss += 0.01 * tf.math.reduce_mean(tf.keras.losses.logcosh(proc_images_masked_nhwc_expr, targ_images_masked_nhwc_expr))
 
         # Optimizer.
         self._info('Setting up optimizer...')
