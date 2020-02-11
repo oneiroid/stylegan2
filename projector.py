@@ -27,11 +27,13 @@ class Projector:
         self.regularize_noise_weight    = 1e5
         self.verbose                    = True
         self.clone_net                  = True
+        self.num_dlats_smpls            = 10
 
         self._Gs                    = None
         self._minibatch_size        = None
         self._dlatent_avg           = None
         self._dlatent_std           = None
+        self._dlas_smpls            = None
         self._noise_vars            = None
         self._noise_init_op         = None
         self._noise_normalize_op    = None
@@ -52,6 +54,12 @@ class Projector:
     def _info(self, *args):
         if self.verbose:
             print('Projector:', *args)
+
+
+    def gen_dlats_smpls(self, num_smpls, do_tile=False):
+        latent_samples = np.random.RandomState(123).randn(num_smpls, *self._Gs.input_shapes[0][1:])
+        dlatent_samples = self._Gs.components.mapping.run(latent_samples, None)  # [N, 1, 512]
+        return dlatent_samples
 
     def set_network(self, Gs, minibatch_size=1):
         assert minibatch_size == 1
@@ -141,7 +149,11 @@ class Projector:
         self._loss += reg_loss * self.regularize_noise_weight
 
         # Plain pixel loss
-        self._loss += 0.01 * tf.math.reduce_mean(tf.keras.losses.logcosh(proc_images_masked_nhwc_expr, targ_images_masked_nhwc_expr))
+        self._loss += 0.01 * tf.math.reduce_sum(tf.keras.losses.logcosh(proc_images_masked_nhwc_expr, targ_images_masked_nhwc_expr))
+
+        # Random dlat penalty
+        #self._dlats_smpls = tf.Variable(tf.zeros([self.num_dlats_smpls, 512]), name='rnd_dlats_smpls')
+        self._loss += 0.1 * tf.math.reduce_mean(tf.math.abs(self._dlatent_avg - self._dlatents_var))
 
         # Optimizer.
         self._info('Setting up optimizer...')
