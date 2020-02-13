@@ -29,6 +29,10 @@ class Projector:
         self.clone_net                  = True
         self.num_dlats_smpls            = 10
 
+
+        self.coef_pixel_loss = 0.01
+        self.coef_dlat_loss = 0.1
+
         self._Gs                    = None
         self._minibatch_size        = None
         self._dlatent_avg           = None
@@ -50,6 +54,7 @@ class Projector:
         self._opt                   = None
         self._opt_step              = None
         self._cur_step              = None
+        self._img_mask_rgb_np = None
 
     def _info(self, *args):
         if self.verbose:
@@ -77,6 +82,9 @@ class Projector:
         self._dlatent_avg = np.mean(dlatent_samples, axis=0, keepdims=True) # [1, 18, 512]
         self._dlatent_std = (np.sum((dlatent_samples - self._dlatent_avg) ** 2) / self.dlatent_avg_samples) ** 0.5
         self._info('std = %g' % self._dlatent_std)
+
+        img_mask = Im.open('./assets/masks/mask_1024_soft.png').resize((self.img_size, self.img_size))
+        self._img_mask_rgb_np = np.reshape(img_mask.convert('RGB'), newshape=(1, self.img_size, self.img_size, 3)) / 255
 
         # Find noise inputs.
         self._info('Setting up noise inputs...')
@@ -106,7 +114,7 @@ class Projector:
         self._dlatents_expr = self._dlatents_var + dlatents_noise
         self._images_expr = self._Gs.components.synthesis.get_output_for(self._dlatents_expr, randomize_noise=False)
 
-        # Downsample image to 256x256 if it's larger than that. VGG was built for 224x224 images.
+        # Downsample image to img_size if it's larger than that. VGG was built for 224x224 images.
         proc_images_expr_orig = (self._images_expr + 1) * (255 / 2)
         sh = proc_images_expr_orig.shape.as_list()
         if sh[2] > self.img_size:
@@ -115,23 +123,17 @@ class Projector:
         else:
             proc_images_expr = proc_images_expr_orig
 
-        img_mask = Im.open('./assets/masks/mask_1024_softscaled.png').resize((self.img_size, self.img_size))
-        img_mask_rgb_np = np.reshape(img_mask.convert('RGB'), newshape=(1, self.img_size, self.img_size, 3)) / 255
-
         proc_images_nhwc_expr = tf.transpose(proc_images_expr, (0, 2, 3, 1))
-        proc_images_masked_nhwc_expr = proc_images_nhwc_expr * img_mask_rgb_np
+        proc_images_masked_nhwc_expr = proc_images_nhwc_expr * self._img_mask_rgb_np
         proc_images_masked_expr = tf.transpose(proc_images_masked_nhwc_expr, (0, 3, 1, 2))
 
         # Loss graph.
         self._info('Building loss graph...')
         self._target_images_var = tf.Variable(tf.zeros(proc_images_expr.shape), name='target_images_var')
-        targ_images_nhwc_expr = tf.transpose(self._target_images_var, (0, 2, 3, 1))
-        targ_images_masked_nhwc_expr = targ_images_nhwc_expr * img_mask_rgb_np
-        targ_images_masked_expr = tf.transpose(targ_images_masked_nhwc_expr, (0, 3, 1, 2))
         if self._lpips is None:
             self._lpips = misc.load_pkl('http://d36zk2xti64re0.cloudfront.net/stylegan1/networks/metrics/vgg16_zhang_perceptual.pkl') # vgg16_zhang_perceptual.pkl
 
-        self._dist = self._lpips.get_output_for(proc_images_masked_expr, targ_images_masked_expr)
+        self._dist = self._lpips.get_output_for(proc_images_masked_expr, self._target_images_var)
         self._loss = tf.reduce_sum(self._dist)
 
         # Noise regularization graph.
@@ -149,11 +151,16 @@ class Projector:
         self._loss += reg_loss * self.regularize_noise_weight
 
         # Plain pixel loss
-        self._loss += 0.01 * tf.math.reduce_sum(tf.keras.losses.logcosh(proc_images_masked_nhwc_expr, targ_images_masked_nhwc_expr))
+        if self.coef_pixel_loss > 0:
+            proc_images_masked_nhwc_g_expr = tf.image.rgb_to_grayscale(proc_images_masked_nhwc_expr)
+            targ_images_nhwc_expr = tf.transpose(self._target_images_var, (0, 2, 3, 1))
+            targ_images_nhwc_g_expr = tf.image.rgb_to_grayscale(targ_images_nhwc_expr)
+            self._loss += self.coef_pixel_loss * tf.losses.mean_squared_error(proc_images_masked_nhwc_g_expr, targ_images_nhwc_g_expr)
 
         # Random dlat penalty
-        #self._dlats_smpls = tf.Variable(tf.zeros([self.num_dlats_smpls, 512]), name='rnd_dlats_smpls')
-        self._loss += 0.1 * tf.math.reduce_mean(tf.math.abs(self._dlatent_avg - self._dlatents_var))
+        if self.coef_dlat_loss > 0:
+            #self._dlats_smpls = tf.Variable(tf.zeros([self.num_dlats_smpls, 512]), name='rnd_dlats_smpls')
+            self._loss += self.coef_dlat_loss * tf.math.reduce_mean(tf.math.abs(self._dlatent_avg - self._dlatents_var))
 
         # Optimizer.
         self._info('Setting up optimizer...')
@@ -188,9 +195,12 @@ class Projector:
             factor = sh[2] // self._target_images_var.shape[2]
             target_images = np.reshape(target_images, [-1, sh[1], sh[2] // factor, factor, sh[3] // factor, factor]).mean((3, 5))
 
+        target_images_nhwc = np.transpose(target_images, [0, 2, 3, 1])
+        target_images_nhwc_masked = target_images_nhwc * self._img_mask_rgb_np
+        target_images_masked = np.transpose(target_images_nhwc_masked, [0, 3, 1, 2])
         # Initialize optimization state.
         self._info('Initializing optimization state...')
-        tflib.set_vars({self._target_images_var: target_images, self._dlatents_var: np.tile(self._dlatent_avg, [self._minibatch_size, 1, 1])})
+        tflib.set_vars({self._target_images_var: target_images_masked, self._dlatents_var: np.tile(self._dlatent_avg, [self._minibatch_size, 1, 1])})
         tflib.run(self._noise_init_op)
         self._opt.reset_optimizer_state()
         self._cur_step = 0
