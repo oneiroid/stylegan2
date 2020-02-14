@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 import dnnlib
 import dnnlib.tflib as tflib
-import PIL.Image as Im
+import PIL.Image as Im, cv2
 
 from training import misc
 
@@ -37,7 +37,6 @@ class Projector:
         self._dlas_smpls            = None
         self._noise_vars            = None
         self._dlatents_var          = None
-        self._dlatents_expr         = None
         self._images_expr           = None
         self._target_images_var     = None
         self._lpips                 = None
@@ -85,18 +84,20 @@ class Projector:
         # Image output graph.
         self._info('Building image output graph...')
         self._dlatents_var = tf.Variable(tf.zeros([self._minibatch_size] + list(self._dlatent_avg.shape[1:])), name='dlatents_var')
-        self._images_expr = self._Gs.components.synthesis.get_output_for(self._dlatents_expr, randomize_noise=False)
+        self._images_expr = self._Gs.components.synthesis.get_output_for(self._dlatents_var, randomize_noise=False)
+        print(self._dlatents_var)
         proc_images_expr = tf.transpose((self._images_expr + 1) * (255 / 2), (0, 2, 3, 1))
-        self._proc_images_masked_expr = proc_images_expr * self._img_mask_rgb_np
+        self._proc_images_masked_expr = proc_images_expr * self._mask_rgb_np
 
         # Loss graph.
+        self._losses = []
         self._info('Building loss graph...')
         self._target_images_var = tf.Variable(tf.zeros(proc_images_expr.shape), name='target_images_var')
         if self._lpips is None:
             self._lpips = misc.load_pkl('http://d36zk2xti64re0.cloudfront.net/stylegan1/networks/metrics/vgg16_zhang_perceptual.pkl') # vgg16_zhang_perceptual.pkl
 
-        proc_images_perc = tf.transpose(tf.image.resize_area(self._proc_images_masked_expr, (self.img_size, self.img_size)), (0, 3, 1, 2))
-        targ_images_perc = tf.transpose(tf.image.resize_area(self._target_images_var, (self.img_size, self.img_size)), (0, 3, 1, 2))
+        proc_images_perc = tf.transpose(tf.image.resize_images(self._proc_images_masked_expr, (self.img_size, self.img_size)), (0, 3, 1, 2))
+        targ_images_perc = tf.transpose(tf.image.resize_images(self._target_images_var, (self.img_size, self.img_size)), (0, 3, 1, 2))
         self._dist = self._lpips.get_output_for(proc_images_perc, targ_images_perc)
 
         self._losses.append(tf.reduce_sum(self._dist))
@@ -104,9 +105,10 @@ class Projector:
 
         # Plain pixel loss
         if self.coef_pixel_loss > 0:
-            proc_images_masked_g_expr = tf.image.rgb_to_grayscale(self._proc_images_masked_expr)
-            targ_images_g_expr = tf.image.rgb_to_grayscale(self._target_images_var)
-            self._losses.append(tf.losses.mean_squared_error(proc_images_masked_g_expr, targ_images_g_expr))
+            #proc_images_masked_g_expr = tf.image.rgb_to_grayscale(self._proc_images_masked_expr)
+            #targ_images_g_expr = tf.image.rgb_to_grayscale(self._target_images_var)
+            #self._losses.append(tf.losses.mean_squared_error(proc_images_masked_g_expr, targ_images_g_expr))
+            self._losses.append(tf.losses.mean_squared_error(self._proc_images_masked_expr, self._target_images_var))
             self._loss += self.coef_pixel_loss * self._losses[-1]
 
         # Random dlat penalty
@@ -142,7 +144,7 @@ class Projector:
         target_images = np.asarray(target_images, dtype='float32')
         target_images = (target_images + 1) * (255 / 2)
         target_images_nhwc = np.transpose(target_images, [0, 2, 3, 1])
-        target_images_nhwc_masked = target_images_nhwc * self._img_mask_rgb_np
+        target_images_nhwc_masked = target_images_nhwc * self._mask_rgb_np
         # Initialize optimization state.
         self._info('Initializing optimization state...')
         tflib.set_vars({self._target_images_var: target_images_nhwc_masked, self._dlatents_var: np.tile(self._dlatent_avg, [self._minibatch_size, 1, 1])})
@@ -178,7 +180,7 @@ class Projector:
         return self._cur_step
 
     def get_dlatents(self):
-        return tflib.run(self._dlatents_expr)
+        return tflib.run(self._dlatents_var)
 
     def get_images(self):
         return tflib.run(self._images_expr)
