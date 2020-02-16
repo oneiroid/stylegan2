@@ -27,8 +27,9 @@ class Projector:
         self.num_dlats_smpls            = 10
 
 
-        self.coef_pixel_loss = 0.01
-        self.coef_dlat_loss = 0.01
+        self.coef_pixel_loss = 0.
+        self.coef_dlat_loss = 0.
+        self.coef_mssim_loss = 0.
 
         self._Gs                    = None
         self._minibatch_size        = None
@@ -105,16 +106,20 @@ class Projector:
 
         # Plain pixel loss
         if self.coef_pixel_loss > 0:
-            #proc_images_masked_g_expr = tf.image.rgb_to_grayscale(self._proc_images_masked_expr)
-            #targ_images_g_expr = tf.image.rgb_to_grayscale(self._target_images_var)
             #self._losses.append(tf.losses.mean_squared_error(proc_images_masked_g_expr, targ_images_g_expr))
             self._losses.append(tf.losses.mean_squared_error(self._proc_images_masked_expr, self._target_images_var))
             self._loss += self.coef_pixel_loss * self._losses[-1]
 
+        if self.coef_mssim_loss > 0:
+            proc_images_masked_g_expr = tf.image.rgb_to_grayscale(self._proc_images_masked_expr)
+            targ_images_g_expr = tf.image.rgb_to_grayscale(self._target_images_var)
+            self._losses.append(tf.math.reduce_mean(tf.image.ssim(proc_images_masked_g_expr, targ_images_g_expr)))
+            self._loss += self.coef_mssim_loss * self._losses[-1]
+
         # Random dlat penalty
         if self.coef_dlat_loss > 0:
             #self._dlats_smpls = tf.Variable(tf.zeros([self.num_dlats_smpls, 512]), name='rnd_dlats_smpls')
-            self._losses.append(tf.math.reduce_mean(tf.math.abs(self._dlatent_avg - self._dlatents_var)))
+            self._losses.append(tf.math.reduce_sum(tf.math.abs(self._dlatent_avg - self._dlatents_var)))
             self._loss += self.coef_dlat_loss * self._losses[-1]
 
         # Optimizer.
