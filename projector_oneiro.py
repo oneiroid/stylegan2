@@ -113,7 +113,7 @@ class Projector:
         if self.coef_mssim_loss > 0:
             proc_images_masked_g_expr = tf.image.rgb_to_grayscale(self._proc_images_masked_expr)
             targ_images_g_expr = tf.image.rgb_to_grayscale(self._target_images_var)
-            self._losses.append(tf.math.reduce_mean(tf.image.ssim(proc_images_masked_g_expr, targ_images_g_expr)))
+            self._losses.append(tf.math.reduce_mean(tf.image.ssim(proc_images_masked_g_expr, targ_images_g_expr, max_val=255.)))
             self._loss += self.coef_mssim_loss * self._losses[-1]
 
         # Random dlat penalty
