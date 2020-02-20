@@ -113,13 +113,13 @@ class Projector:
         if self.coef_mssim_loss > 0:
             proc_images_masked_g_expr = tf.image.rgb_to_grayscale(self._proc_images_masked_expr)
             targ_images_g_expr = tf.image.rgb_to_grayscale(self._target_images_var)
-            self._losses.append(tf.math.reduce_mean(tf.image.ssim(proc_images_masked_g_expr, targ_images_g_expr, max_val=255.)))
+            self._losses.append(tf.math.reduce_mean(1 - tf.image.ssim(proc_images_masked_g_expr, targ_images_g_expr, max_val=255.)))
             self._loss += self.coef_mssim_loss * self._losses[-1]
 
         # Random dlat penalty
         if self.coef_dlat_loss > 0:
             #self._dlats_smpls = tf.Variable(tf.zeros([self.num_dlats_smpls, 512]), name='rnd_dlats_smpls')
-            self._losses.append(tf.math.reduce_sum(tf.math.abs(self._dlatent_avg - self._dlatents_var)))
+            self._losses.append(tf.math.reduce_mean(tf.math.abs(self._dlatent_avg - self._dlatents_var)))
             self._loss += self.coef_dlat_loss * self._losses[-1]
 
         # Optimizer.
@@ -172,12 +172,12 @@ class Projector:
 
         # Train.
         feed_dict = {self._lrate_in: learning_rate}
-        res_lst = tflib.run([self._opt_step, self._dist, self._loss] + self._losses, feed_dict)
+        res_lst = tflib.run([self._opt_step, self._loss] + self._losses, feed_dict)
 
         # Print status.
         self._cur_step += 1
         if self._cur_step == self.num_steps or self._cur_step % 10 == 0:
-            self._info(f'dist: {res_lst[1]}, loss: {res_lst[2]}, losses: {res_lst[3:]}')
+            self._info(f'loss: {res_lst[1]}, losses: {res_lst[2:]}')
         if self._cur_step == self.num_steps:
             self._info('Done.')
 
