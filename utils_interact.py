@@ -110,7 +110,6 @@ def handle_render(obj):
 
 
 lids = range(8)
-dlatt = wrepo.dlat
 
 
 def create_ui():
