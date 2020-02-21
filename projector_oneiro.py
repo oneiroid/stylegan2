@@ -22,7 +22,8 @@ class Projector:
         self.initial_learning_rate      = 0.1
         self.lr_rampdown_length         = 0.25
         self.lr_rampup_length           = 0.05
-        self.verbose                    = True
+        self.verbose                    = False
+        self.path_mask                  = './assets/masks/mask_1024_soft.png'
         self.clone_net                  = False
         self.num_dlats_smpls            = 10
 
@@ -78,7 +79,7 @@ class Projector:
         self._dlatent_std = (np.sum((dlatent_samples - self._dlatent_avg) ** 2) / self.dlatent_avg_samples) ** 0.5
         self._info('std = %g' % self._dlatent_std)
 
-        img_mask = Im.open('./assets/masks/mask_1024_soft.png').convert('RGB')
+        img_mask = Im.open(self.path_mask).convert('RGB')
         self._mask_rgb_np = np.expand_dims(img_mask, axis=0) / 255
         #self._mask_rgb_perc_np = np.reshape(img_mask.resize((self.img_size, self.img_size)), newshape=(1, self.img_size, self.img_size, 3)) / 255
 
@@ -107,13 +108,13 @@ class Projector:
         # Plain pixel loss
         if self.coef_pixel_loss > 0:
             #self._losses.append(tf.losses.mean_squared_error(proc_images_masked_g_expr, targ_images_g_expr))
-            self._losses.append(tf.losses.mean_squared_error(self._proc_images_masked_expr, self._target_images_var))
+            self._losses.append(tf.math.reduce_sum(tf.math.abs(self._proc_images_masked_expr, self._target_images_var)))
             self._loss += self.coef_pixel_loss * self._losses[-1]
 
         if self.coef_mssim_loss > 0:
             proc_images_masked_g_expr = tf.image.rgb_to_grayscale(self._proc_images_masked_expr)
             targ_images_g_expr = tf.image.rgb_to_grayscale(self._target_images_var)
-            self._losses.append(tf.math.reduce_mean(1 - tf.image.ssim(proc_images_masked_g_expr, targ_images_g_expr, max_val=255.)))
+            self._losses.append(tf.math.reduce_sum(1 - tf.image.ssim(proc_images_masked_g_expr, targ_images_g_expr, max_val=255.)))
             self._loss += self.coef_mssim_loss * self._losses[-1]
 
         # Random dlat penalty
