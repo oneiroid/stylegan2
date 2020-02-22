@@ -98,8 +98,8 @@ class Projector:
         if self._lpips is None:
             self._lpips = misc.load_pkl('http://d36zk2xti64re0.cloudfront.net/stylegan1/networks/metrics/vgg16_zhang_perceptual.pkl') # vgg16_zhang_perceptual.pkl
 
-        proc_images_perc = tf.transpose(tf.image.resize_images(self._proc_images_masked_expr, (self.img_size, self.img_size)), (0, 3, 1, 2))
-        targ_images_perc = tf.transpose(tf.image.resize_images(self._target_images_var, (self.img_size, self.img_size)), (0, 3, 1, 2))
+        proc_images_perc = tf.transpose(tf.image.resize_images(self._proc_images_masked_expr, (self.img_size, self.img_size), align_corners=True), (0, 3, 1, 2))
+        targ_images_perc = tf.transpose(tf.image.resize_images(self._target_images_var, (self.img_size, self.img_size), align_corners=True), (0, 3, 1, 2))
         self._dist = self._lpips.get_output_for(proc_images_perc, targ_images_perc)
 
         self._losses.append(tf.reduce_sum(self._dist))

@@ -1,4 +1,5 @@
-import dnnlib, pretrained_networks, dnnlib.tflib as tflib, utils_stylegan as ust, projector_oneiro, projector, numpy as np, joblib, ipywidgets as wdgts, cv2, shutil, dataset_tool as dstool, sys
+import dnnlib, pretrained_networks, dnnlib.tflib as tflib, utils_stylegan as ust, projector_oneiro, projector, numpy as np, joblib, ipywidgets as wdgts
+import shutil, dataset_tool as dstool, sys, PIL, PIL.Image as Im, pathlib
 from training import dataset, misc
 from ipywidgets import GridspecLayout, HBox, Output
 from IPython.display import display
