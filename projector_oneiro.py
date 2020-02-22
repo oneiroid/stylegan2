@@ -188,7 +188,7 @@ class Projector:
             self._output_log.clear_output()
             with self._output_log:
                 for rec in self._runlog[-5:]:
-                    self._info(f'step: {rec[0]}, losses: {res_lst[1:]}')
+                    self._info(f'step: {rec[0]}, losses: {rec[1:]}')
         if self._cur_step == self.num_steps:
             self._info('Done.')
 
