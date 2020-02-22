@@ -6,6 +6,8 @@
 
 import numpy as np
 import tensorflow as tf
+from IPython import display
+import ipywidgets as widgets
 import dnnlib
 import dnnlib.tflib as tflib
 import PIL.Image as Im, cv2
@@ -51,6 +53,8 @@ class Projector:
         self._opt_step              = None
         self._cur_step              = None
         self._img_mask_rgb_np = None
+        self._runlog          = []
+        self._output_log       = widgets.Output()
 
     def _info(self, *args):
         if self.verbose:
@@ -80,7 +84,7 @@ class Projector:
         self._info('std = %g' % self._dlatent_std)
 
         img_mask = Im.open(self.path_mask).convert('RGB')
-        self._mask_rgb_np = np.expand_dims(img_mask, axis=0) / 255
+        self._mask_rgb_np = 1.4 * np.expand_dims(img_mask, axis=0) / 255
         #self._mask_rgb_perc_np = np.reshape(img_mask.resize((self.img_size, self.img_size)), newshape=(1, self.img_size, self.img_size, 3)) / 255
 
         # Image output graph.
@@ -153,9 +157,13 @@ class Projector:
         target_images_nhwc_masked = target_images_nhwc * self._mask_rgb_np
         # Initialize optimization state.
         self._info('Initializing optimization state...')
+        self._runlog = []
         tflib.set_vars({self._target_images_var: target_images_nhwc_masked, self._dlatents_var: np.tile(self._dlatent_avg, [self._minibatch_size, 1, 1])})
         self._opt.reset_optimizer_state()
         self._cur_step = 0
+        self._output_log.clear_output()
+        display(self._output_log)
+
 
     def step(self):
         assert self._cur_step is not None
@@ -174,11 +182,13 @@ class Projector:
         # Train.
         feed_dict = {self._lrate_in: learning_rate}
         res_lst = tflib.run([self._opt_step, self._loss] + self._losses, feed_dict)
-
-        # Print status.
+        self._runlog.append([self._cur_step] + res_lst[1:])
         self._cur_step += 1
         if self._cur_step == self.num_steps or self._cur_step % 10 == 0:
-            self._info(f'loss: {res_lst[1]}, losses: {res_lst[2:]}')
+            self._output_log.clear_output()
+            with self._output_log:
+                for rec in self._runlog[-5:]:
+                    self._info(f'step: {rec[0]}, losses: {res_lst[1:]}')
         if self._cur_step == self.num_steps:
             self._info('Done.')
 
