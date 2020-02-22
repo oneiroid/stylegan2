@@ -6,7 +6,7 @@
 
 import numpy as np
 import tensorflow as tf
-from IPython import display
+from IPython.display import display
 import ipywidgets as widgets
 import dnnlib
 import dnnlib.tflib as tflib
