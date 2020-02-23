@@ -91,7 +91,6 @@ class Projector:
         self._info('Building image output graph...')
         self._dlatents_var = tf.Variable(tf.zeros([self._minibatch_size] + list(self._dlatent_avg.shape[1:])), name='dlatents_var')
         self._images_expr = self._Gs.components.synthesis.get_output_for(self._dlatents_var, randomize_noise=False)
-        print(self._dlatents_var)
         proc_images_expr = tf.transpose((self._images_expr + 1) * (255 / 2), (0, 2, 3, 1))
         self._proc_images_masked_expr = proc_images_expr * self._mask_rgb_np
 
@@ -182,13 +181,14 @@ class Projector:
         # Train.
         feed_dict = {self._lrate_in: learning_rate}
         res_lst = tflib.run([self._opt_step, self._loss] + self._losses, feed_dict)
-        self._runlog.append([self._cur_step] + res_lst[1:])
         self._cur_step += 1
         if self._cur_step == self.num_steps or self._cur_step % 10 == 0:
+            self._runlog.append([self._cur_step] + res_lst[1:])
             self._output_log.clear_output()
             with self._output_log:
-                for rec in self._runlog[-5:]:
-                    self._info(f'step: {rec[0]}, losses: {rec[1:]}')
+                runlog_tail = self._runlog[-5:] if len(self._runlog) >= 5 else self._runlog
+                for rec in runlog_tail:
+                    self._info(f'step: {rec[0]}, loss: {rec[1]}, losses: {rec[2:]}')
         if self._cur_step == self.num_steps:
             self._info('Done.')
 
