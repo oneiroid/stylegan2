@@ -126,7 +126,8 @@ class Projector:
         if self.coef_dlat_loss > 0:
             #self._dlats_smpls = tf.Variable(tf.zeros([self.num_dlats_smpls, 512]), name='rnd_dlats_smpls')
             dlat_dist = tf.math.abs(self._dlatent_avg - self._dlatents_var)
-            dlat_dist_std = tf.where(dlat_dist > self._dlatent_std, dlat_dist - self._dlatent_std, 0.)
+            dlat_dist_0 = tf.zeros((1, 18, 512))
+            dlat_dist_std = tf.where(dlat_dist > self._dlatent_std, dlat_dist - self._dlatent_std, dlat_dist_0)
             self._losses.append(tf.math.reduce_sum(dlat_dist_std))
             self._loss += self.coef_dlat_loss * self._losses[-1]
 
