@@ -80,8 +80,10 @@ class Projector:
         latent_samples = np.random.RandomState(123).randn(self.dlatent_avg_samples, *self._Gs.input_shapes[0][1:])
         dlatent_samples = self._Gs.components.mapping.run(latent_samples, None) # [N, 1, 512]
         self._dlatent_avg = np.mean(dlatent_samples, axis=0, keepdims=True) # [1, 18, 512]
-        self._dlatent_std = (np.sum((dlatent_samples - self._dlatent_avg) ** 2) / self.dlatent_avg_samples) ** 0.5
-        self._info('std = %g' % self._dlatent_std)
+        #self._dlatent_std = (np.sum((dlatent_samples - self._dlatent_avg) ** 2) / self.dlatent_avg_samples) ** 0.5
+        self._dlatent_std = np.std(dlatent_samples, axis=0, keepdims=True)
+        #self._info('std = %g' % self._dlatent_std)
+
 
         img_mask = Im.open(self.path_mask).convert('RGB')
         self._mask_rgb_np = 1.4 * np.expand_dims(img_mask, axis=0) / 255
@@ -123,7 +125,9 @@ class Projector:
         # Random dlat penalty
         if self.coef_dlat_loss > 0:
             #self._dlats_smpls = tf.Variable(tf.zeros([self.num_dlats_smpls, 512]), name='rnd_dlats_smpls')
-            self._losses.append(tf.math.reduce_mean(tf.math.abs(self._dlatent_avg - self._dlatents_var)))
+            dlat_dist = tf.math.abs(self._dlatent_avg - self._dlatents_var)
+            dlat_dist_std = tf.where(dlat_dist > self._dlatent_std, dlat_dist - self._dlatent_std, 0.)
+            self._losses.append(tf.math.reduce_sum(dlat_dist_std))
             self._loss += self.coef_dlat_loss * self._losses[-1]
 
         # Optimizer.

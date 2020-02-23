@@ -191,11 +191,11 @@ def lerp_dir_sym(dla, di, steps_num=4, step_size=0.7, layer_indices = range(8)):
     show_grid_i(imgz)
 
 
-def plot_dlat(dlat):
+def plot_dlat(dlat, figsize=(10, 7)):
     fig, ax = plt.subplots()
-    fig.set_size_inches((10, 7))
+    fig.set_size_inches(figsize)
     ax.plot(dlat, linestyle='', marker='.', alpha=0.6)
-    ax.hlines([-.25, 1.5], xmin=0, xmax=512, colors='k')
+    #ax.hlines([-.25, 1.5], xmin=0, xmax=512, colors='k')
     #ax.set_xlim(0, 512)
     #ax.set_ylim(-.5, 1.5)
     plt.show()
