@@ -113,7 +113,7 @@ class Projector:
         # Plain pixel loss
         if self.coef_pixel_loss > 0:
             #self._losses.append(tf.losses.mean_squared_error(proc_images_masked_g_expr, targ_images_g_expr))
-            self._losses.append(tf.losses.mean_squared_error(self._proc_images_masked_expr - self._target_images_var))
+            self._losses.append(tf.losses.mean_squared_error(self._proc_images_masked_expr, self._target_images_var))
             self._loss += self.coef_pixel_loss * self._losses[-1]
 
         if self.coef_mssim_loss > 0:
