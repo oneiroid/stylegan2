@@ -113,7 +113,7 @@ class Projector:
         # Plain pixel loss
         if self.coef_pixel_loss > 0:
             #self._losses.append(tf.losses.mean_squared_error(proc_images_masked_g_expr, targ_images_g_expr))
-            self._losses.append(tf.math.reduce_sum(tf.math.abs(self._proc_images_masked_expr - self._target_images_var)))
+            self._losses.append(tf.losses.mean_squared_error(self._proc_images_masked_expr - self._target_images_var))
             self._loss += self.coef_pixel_loss * self._losses[-1]
 
         if self.coef_mssim_loss > 0:
@@ -125,10 +125,8 @@ class Projector:
         # Random dlat penalty
         if self.coef_dlat_loss > 0:
             #self._dlats_smpls = tf.Variable(tf.zeros([self.num_dlats_smpls, 512]), name='rnd_dlats_smpls')
-            dlat_dist = tf.math.abs(self._dlatent_avg - self._dlatents_var)
-            dlat_dist_0 = tf.zeros((1, 18, 512))
-            dlat_dist_std = tf.where(dlat_dist > self._dlatent_std, dlat_dist - self._dlatent_std, dlat_dist_0)
-            self._losses.append(tf.math.reduce_sum(dlat_dist_std))
+            dlat_dist = tf.math.abs(self._dlatent_avg - self._dlatents_var) / self._dlatent_std
+            self._losses.append(tf.math.reduce_mean(dlat_dist))
             self._loss += self.coef_dlat_loss * self._losses[-1]
 
         # Optimizer.
