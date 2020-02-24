@@ -168,7 +168,7 @@ class Projector:
 
         # Prepare target images.
         self._info('Preparing target images...')
-        target_images_small = np.asarray([Im.fromarray(img).resize((self.img_size, self.img_size)) for img in target_images], dtype='float32')
+        target_images_small = np.asarray([np.asarray(Im.fromarray(img).resize((self.img_size, self.img_size))) for img in target_images], dtype='float32')
         target_images_small_masked = target_images_small * self._mask_rgb_small_np
         target_images = np.asarray(target_images, dtype='float32')
         target_images_masked = target_images * self._mask_rgb_np
