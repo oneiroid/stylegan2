@@ -264,4 +264,4 @@ def convert_images_to_float32(images, drange=[-1, 1], nchw_to_nhwc=True, shrink=
         images = tf.transpose(images, [0, 2, 3, 1])
     scale = 255 / (drange[1] - drange[0])
     images = images * scale + (0.5 - drange[0] * scale)
-    return tf.saturate_cast(images, tf.uint8)
+    return images

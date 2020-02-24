@@ -35,7 +35,7 @@ class Projector:
         self.coef_mssim_loss = 0.
 
         self.Gs_kwargs = dnnlib.EasyDict()
-        self.Gs_kwargs.output_transform = dict(func=tflib.convert_images_to_float32, nchw_to_nhwc=True)
+        self.Gs_kwargs.output_transform = dict(func=tflib.tfutil.convert_images_to_float32, nchw_to_nhwc=True)
         self.Gs_kwargs.randomize_noise = False
         self.Gs_kwargs.minibatch_size = 1
 
