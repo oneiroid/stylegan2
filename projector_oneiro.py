@@ -54,7 +54,7 @@ class Projector:
         self._cur_step              = None
         self._img_mask_rgb_np = None
         self._runlog          = []
-        self._output_log       = widgets.Output()
+        self._output_log       = None
 
     def _info(self, *args):
         if self.verbose:
@@ -86,7 +86,7 @@ class Projector:
 
 
         img_mask = Im.open(self.path_mask).convert('RGB')
-        self._mask_rgb_np = 1.4 * np.expand_dims(img_mask, axis=0) / 255
+        self._mask_rgb_np = np.expand_dims(img_mask, axis=0) / 255
         #self._mask_rgb_perc_np = np.reshape(img_mask.resize((self.img_size, self.img_size)), newshape=(1, self.img_size, self.img_size, 3)) / 255
 
         # Image output graph.
@@ -103,8 +103,16 @@ class Projector:
         if self._lpips is None:
             self._lpips = misc.load_pkl('http://d36zk2xti64re0.cloudfront.net/stylegan1/networks/metrics/vgg16_zhang_perceptual.pkl') # vgg16_zhang_perceptual.pkl
 
-        proc_images_perc = tf.transpose(tf.image.resize_images(self._proc_images_masked_expr, (self.img_size, self.img_size), align_corners=True), (0, 3, 1, 2))
-        targ_images_perc = tf.transpose(tf.image.resize_images(self._target_images_var, (self.img_size, self.img_size), align_corners=True), (0, 3, 1, 2))
+        proc_images_perc = tf.transpose(self._proc_images_masked_expr, (0, 3, 1, 2))
+        sh = proc_images_perc.shape.as_list()
+        factor = sh[2] // self.img_size
+        proc_images_perc = tf.reduce_mean(tf.reshape(proc_images_perc, [-1, sh[1], sh[2] // factor, factor, sh[2] // factor, factor]), axis=[3, 5])
+        #proc_images_perc = tf.transpose(tf.image.resize_images(self._proc_images_masked_expr, (self.img_size, self.img_size), align_corners=True), (0, 3, 1, 2))
+        targ_images_perc = tf.transpose(self._target_images_var, (0, 3, 1, 2))
+        sh = targ_images_perc.shape.as_list()
+        factor = sh[2] // self.img_size
+        targ_images_perc = tf.reduce_mean(tf.reshape(targ_images_perc, [-1, sh[1], sh[2] // factor, factor, sh[2] // factor, factor]), axis=[3, 5])
+        #targ_images_perc = tf.transpose(tf.image.resize_images(self._target_images_var, (self.img_size, self.img_size), align_corners=True), (0, 3, 1, 2))
         self._dist = self._lpips.get_output_for(proc_images_perc, targ_images_perc)
 
         self._losses.append(tf.reduce_sum(self._dist))
@@ -163,6 +171,7 @@ class Projector:
         tflib.set_vars({self._target_images_var: target_images_nhwc_masked, self._dlatents_var: np.tile(self._dlatent_avg, [self._minibatch_size, 1, 1])})
         self._opt.reset_optimizer_state()
         self._cur_step = 0
+        self._output_log = widgets.Output()
         self._output_log.clear_output()
         display(self._output_log)
 
