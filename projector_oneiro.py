@@ -29,7 +29,6 @@ class Projector:
         self.clone_net                  = False
         self.num_dlats_smpls            = 10
 
-
         self.coef_pixel_loss = 0.
         self.coef_dlat_loss = 0.
         self.coef_mssim_loss = 0.
@@ -57,10 +56,15 @@ class Projector:
         self._opt                   = None
         self._opt_step              = None
         self._cur_step              = None
-        self._img_mask_rgb_np = None
+        self._stochastic_clip_op = None
         self._mask_rgb_np     = None
+        self._mask_rgb_small_np = None
         self._runlog          = None
         self._output_log      = None
+
+        img_mask = Im.open(self.path_mask).convert('RGB')
+        self._mask_rgb_np = np.expand_dims(img_mask, axis=0) / 255
+        self._mask_rgb_small_np = np.expand_dims(img_mask.resize((self.img_size, self.img_size)), axis=0) / 255
 
     def _info(self, *args):
         if self.verbose:
@@ -82,15 +86,11 @@ class Projector:
 
         # Find dlatent stats.
         self._info('Finding W midpoint and stddev using %d samples...' % self.dlatent_avg_samples)
-        latent_samples = np.random.RandomState(123).randn(self.dlatent_avg_samples, *self._Gs.input_shapes[0][1:])
+        latent_samples = np.random.randn(self.dlatent_avg_samples, *self._Gs.input_shapes[0][1:])
         dlatent_samples = self._Gs.components.mapping.run(latent_samples, None)
         self._dlatent_avg = np.mean(dlatent_samples, axis=0, keepdims=True)
         self._dlatent_std = np.std(dlatent_samples, axis=0, keepdims=True)
         #self._dlatent_std = (np.sum((dlatent_samples - self._dlatent_avg) ** 2) / self.dlatent_avg_samples) ** 0.5
-
-        img_mask = Im.open(self.path_mask).convert('RGB')
-        self._mask_rgb_np = np.expand_dims(img_mask, axis=0) / 255
-        self._mask_rgb_small_np = np.expand_dims(img_mask.resize((self.img_size, self.img_size)), axis=0) / 255
         #self._mask_rgb_perc_np = np.reshape(img_mask.resize((self.img_size, self.img_size)), newshape=(1, self.img_size, self.img_size, 3)) / 255
 
         # Image output graph.
@@ -137,12 +137,15 @@ class Projector:
             self._losses.append(tf.math.reduce_sum(1 - tf.image.ssim(proc_images_masked_g_expr, targ_images_g_expr, max_val=255.)))
             self._loss += self.coef_mssim_loss * self._losses[-1]
 
-        # Random dlat penalty
         if self.coef_dlat_loss > 0:
-            #self._dlats_smpls = tf.Variable(tf.zeros([self.num_dlats_smpls, 512]), name='rnd_dlats_smpls')
             dlat_dist = tf.math.abs(self._dlatent_avg - self._dlatents_var) / self._dlatent_std
             self._losses.append(tf.math.reduce_mean(dlat_dist))
             self._loss += self.coef_dlat_loss * self._losses[-1]
+
+        clip_mask_dlat = tf.math.logical_or(self._dlatents_var > self._dlatent_avg + self._dlatent_std * 1.5,
+                                            self._dlatents_var < self._dlatent_avg - self._dlatent_std * 1.5)
+        clipped_dlat = tf.where(clip_mask_dlat, tf.random_normal(shape=self._dlatents_var.shape),  self._dlatents_var)
+        self._stochastic_clip_op = tf.assign(self._dlatents_var, clipped_dlat)
 
         # Optimizer.
         self._info('Setting up optimizer...')
@@ -203,10 +206,12 @@ class Projector:
         learning_rate = self.initial_learning_rate * lr_ramp
 
         # Train.
+        tflib.run(self._stochastic_clip_op)
         feed_dict = {self._lrate_in: learning_rate}
         res_lst = tflib.run([self._opt_step, self._loss] + self._losses, feed_dict)
         self._cur_step += 1
         if self._cur_step == self.num_steps or self._cur_step % 10 == 0:
+
             self._runlog.append([self._cur_step] + res_lst[1:])
             self._output_log.clear_output()
             with self._output_log:

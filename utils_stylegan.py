@@ -201,6 +201,20 @@ def plot_dlat(dlat, figsize=(10, 7)):
     plt.show()
 
 
+def plot_dlat_fancy(dlat, dlat_avg, dlat_std, figsize=(10, 7)):
+    fig, ax = plt.subplots()
+    fig.set_figheight(figsize[1])
+    fig.set_figwidth(figsize[0])
+    upper_dlat = dlat_avg + dlat_std
+    lower_dlat = dlat_avg - dlat_std
+    # plt.plot(upper_dlat.T, linestyle='', color='c', marker='.', alpha=0.9, markersize=4,  antialiased=True)
+    # plt.plot(lower_dlat.T, linestyle='', color='c', marker='.', alpha=0.9, markersize=4, antialiased=True)
+    ax.fill_between(range(512), lower_dlat, upper_dlat, antialiased=True, alpha=0.3)
+    plt.plot(dlat.T, linestyle='', color='r', marker='.', alpha=0.7, markersize=3, antialiased=True)
+    plt.xlim(0, 512)
+    plt.show()
+
+
 def load_pb(model_filepath):
     with tf.gfile.GFile(model_filepath, 'rb') as f:
         graph_def = tf.GraphDef()
