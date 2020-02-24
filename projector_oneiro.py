@@ -34,6 +34,11 @@ class Projector:
         self.coef_dlat_loss = 0.
         self.coef_mssim_loss = 0.
 
+        self.Gs_kwargs = dnnlib.EasyDict()
+        self.Gs_kwargs.output_transform = dict(func=tflib.convert_images_to_float32, nchw_to_nhwc=True)
+        self.Gs_kwargs.randomize_noise = False
+        self.Gs_kwargs.minibatch_size = 1
+
         self._Gs                    = None
         self._minibatch_size        = None
         self._dlatent_avg           = None
@@ -53,13 +58,13 @@ class Projector:
         self._opt_step              = None
         self._cur_step              = None
         self._img_mask_rgb_np = None
-        self._runlog          = []
-        self._output_log       = None
+        self._mask_rgb_np     = None
+        self._runlog          = None
+        self._output_log      = None
 
     def _info(self, *args):
         if self.verbose:
             print('Projector:', *args)
-
 
     def gen_dlats_smpls(self, num_smpls, do_tile=False):
         latent_samples = np.random.RandomState(123).randn(num_smpls, *self._Gs.input_shapes[0][1:])
@@ -78,28 +83,30 @@ class Projector:
         # Find dlatent stats.
         self._info('Finding W midpoint and stddev using %d samples...' % self.dlatent_avg_samples)
         latent_samples = np.random.RandomState(123).randn(self.dlatent_avg_samples, *self._Gs.input_shapes[0][1:])
-        dlatent_samples = self._Gs.components.mapping.run(latent_samples, None) # [N, 1, 512]
-        self._dlatent_avg = np.mean(dlatent_samples, axis=0, keepdims=True) # [1, 18, 512]
-        #self._dlatent_std = (np.sum((dlatent_samples - self._dlatent_avg) ** 2) / self.dlatent_avg_samples) ** 0.5
+        dlatent_samples = self._Gs.components.mapping.run(latent_samples, None)
+        self._dlatent_avg = np.mean(dlatent_samples, axis=0, keepdims=True)
         self._dlatent_std = np.std(dlatent_samples, axis=0, keepdims=True)
-        #self._info('std = %g' % self._dlatent_std)
-
+        #self._dlatent_std = (np.sum((dlatent_samples - self._dlatent_avg) ** 2) / self.dlatent_avg_samples) ** 0.5
 
         img_mask = Im.open(self.path_mask).convert('RGB')
         self._mask_rgb_np = np.expand_dims(img_mask, axis=0) / 255
+        self._mask_rgb_small_np = np.expand_dims(img_mask.resize((self.img_size, self.img_size)), axis=0) / 255
         #self._mask_rgb_perc_np = np.reshape(img_mask.resize((self.img_size, self.img_size)), newshape=(1, self.img_size, self.img_size, 3)) / 255
 
         # Image output graph.
         self._info('Building image output graph...')
         self._dlatents_var = tf.Variable(tf.zeros([self._minibatch_size] + list(self._dlatent_avg.shape[1:])), name='dlatents_var')
-        self._images_expr = self._Gs.components.synthesis.get_output_for(self._dlatents_var, randomize_noise=False)
-        proc_images_expr = tf.transpose((self._images_expr + 1) * (255 / 2), (0, 2, 3, 1))
-        self._proc_images_masked_expr = proc_images_expr * self._mask_rgb_np
+        self._images_expr = self._Gs.components.synthesis.get_output_for(self._dlatents_var, **self.Gs_kwargs)
+        #proc_images_expr = tf.transpose((self._images_expr + 1) * (255 / 2), (0, 2, 3, 1))
+        #self._proc_images_masked_expr = proc_images_expr * self._mask_rgb_np
+        self._proc_images_masked_expr = self._images_expr * self._mask_rgb_np
 
         # Loss graph.
         self._losses = []
         self._info('Building loss graph...')
-        self._target_images_var = tf.Variable(tf.zeros(proc_images_expr.shape), name='target_images_var')
+        self._target_images_var = tf.Variable(tf.zeros(self._proc_images_masked_expr.shape), name='target_images_var')
+        self._target_images_small_var = tf.Variable(tf.zeros(self._mask_rgb_small_np.shape), name='target_images_small_var')
+
         if self._lpips is None:
             self._lpips = misc.load_pkl('http://d36zk2xti64re0.cloudfront.net/stylegan1/networks/metrics/vgg16_zhang_perceptual.pkl') # vgg16_zhang_perceptual.pkl
 
@@ -107,11 +114,11 @@ class Projector:
         sh = proc_images_perc.shape.as_list()
         factor = sh[2] // self.img_size
         proc_images_perc = tf.reduce_mean(tf.reshape(proc_images_perc, [-1, sh[1], sh[2] // factor, factor, sh[2] // factor, factor]), axis=[3, 5])
-        #proc_images_perc = tf.transpose(tf.image.resize_images(self._proc_images_masked_expr, (self.img_size, self.img_size), align_corners=True), (0, 3, 1, 2))
-        targ_images_perc = tf.transpose(self._target_images_var, (0, 3, 1, 2))
-        sh = targ_images_perc.shape.as_list()
-        factor = sh[2] // self.img_size
-        targ_images_perc = tf.reduce_mean(tf.reshape(targ_images_perc, [-1, sh[1], sh[2] // factor, factor, sh[2] // factor, factor]), axis=[3, 5])
+
+        targ_images_perc = tf.transpose(self._target_images_small_var, (0, 3, 1, 2))
+        #sh = targ_images_perc.shape.as_list()
+        #factor = sh[2] // self.img_size
+        #targ_images_perc = tf.reduce_mean(tf.reshape(targ_images_perc, [-1, sh[1], sh[2] // factor, factor, sh[2] // factor, factor]), axis=[3, 5])
         #targ_images_perc = tf.transpose(tf.image.resize_images(self._target_images_var, (self.img_size, self.img_size), align_corners=True), (0, 3, 1, 2))
         self._dist = self._lpips.get_output_for(proc_images_perc, targ_images_perc)
 
@@ -161,20 +168,25 @@ class Projector:
 
         # Prepare target images.
         self._info('Preparing target images...')
+        target_images_small = np.asarray([img.resize((self.img_size, self.img_size)) for img in target_images], dtype='float32')
+        target_images_small_masked = target_images_small * self._mask_rgb_small_np
         target_images = np.asarray(target_images, dtype='float32')
-        target_images = (target_images + 1) * (255 / 2)
-        target_images_nhwc = np.transpose(target_images, [0, 2, 3, 1])
-        target_images_nhwc_masked = target_images_nhwc * self._mask_rgb_np
+        target_images_masked = target_images * self._mask_rgb_np
+        #target_images = (target_images + 1) * (255 / 2)
+        #target_images_nhwc = np.transpose(target_images, [0, 2, 3, 1])
+        #target_images_nhwc_masked = target_images_nhwc * self._mask_rgb_np
         # Initialize optimization state.
         self._info('Initializing optimization state...')
         self._runlog = []
-        tflib.set_vars({self._target_images_var: target_images_nhwc_masked, self._dlatents_var: np.tile(self._dlatent_avg, [self._minibatch_size, 1, 1])})
+        #tflib.set_vars({self._target_images_var: target_images_nhwc_masked, self._dlatents_var: np.tile(self._dlatent_avg, [self._minibatch_size, 1, 1])})
+        tflib.set_vars({self._target_images_var: target_images_masked,
+                        self._target_images_small_var: target_images_small_masked,
+                        self._dlatents_var: np.tile(self._dlatent_avg, [self._minibatch_size, 1, 1])})
         self._opt.reset_optimizer_state()
         self._cur_step = 0
         self._output_log = widgets.Output()
         self._output_log.clear_output()
         display(self._output_log)
-
 
     def step(self):
         assert self._cur_step is not None
@@ -200,7 +212,8 @@ class Projector:
             with self._output_log:
                 runlog_tail = self._runlog[-5:] if len(self._runlog) >= 5 else self._runlog
                 for rec in runlog_tail:
-                    self._info(f'step: {rec[0]}, loss: {rec[1]}, losses: {rec[2:]}')
+                    self._info(f'step: {rec[0]}, loss: {rec[1]}, losses: {rec[2:]}, lr: {learning_rate}')
+
         if self._cur_step == self.num_steps:
             self._info('Done.')
 
