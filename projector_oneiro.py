@@ -96,10 +96,10 @@ class Projector:
         # Image output graph.
         self._info('Building image output graph...')
         self._dlatents_var = tf.Variable(tf.zeros([self._minibatch_size] + list(self._dlatent_avg.shape[1:])), name='dlatents_var')
-        self._images_expr = self._Gs.components.synthesis.get_output_for(self._dlatents_var, **self.Gs_kwargs)
-        #proc_images_expr = tf.transpose((self._images_expr + 1) * (255 / 2), (0, 2, 3, 1))
-        #self._proc_images_masked_expr = proc_images_expr * self._mask_rgb_np
-        self._proc_images_masked_expr = self._images_expr * self._mask_rgb_np
+        #self._images_expr = self._Gs.components.synthesis.get_output_for(self._dlatents_var, **self.Gs_kwargs)
+        self._images_expr = self._Gs.components.synthesis.get_output_for(self._dlatents_var, randomize_noise=False)
+        proc_images_expr = tf.transpose((self._images_expr + 1) * (255 / 2), (0, 2, 3, 1))
+        self._proc_images_masked_expr = proc_images_expr * self._mask_rgb_np
 
         # Loss graph.
         self._losses = []
