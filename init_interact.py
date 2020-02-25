@@ -4,7 +4,7 @@ from training import dataset, misc
 from ipywidgets import GridspecLayout, HBox, Output
 from IPython.display import display
 from google.colab import drive, files
-#import utils_interact as ui_utils
+import utils_interact as ui_utils
 
 PATH_DATA = '/content/drive/My Drive/stylegan2'
 PATH_RESULTS = f'{PATH_DATA}/results'
