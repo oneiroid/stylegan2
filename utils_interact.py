@@ -14,18 +14,23 @@ def write_video_frame(img, video_out):
     video_out.write(cv2.cvtColor(np.array(video_frame).astype('uint8'), cv2.COLOR_RGB2BGR))
 
 
-def project_image(proj, targets, png_prefix, num_snapshots, out_widget=None):
+def project_image(proj, targets, png_prefix, num_snapshots, out_widget=None, out_widget_dlat=None):
     video_out = cv2.VideoWriter(png_prefix + '_video.avi', cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 24, (512, 512))
     snapshot_steps = set(proj.num_steps - np.linspace(0, proj.num_steps, num_snapshots, endpoint=False, dtype=int))
-    misc.save_image_grid(targets, png_prefix + '_target.png', drange=[-1 ,1])
+    #misc.save_image_grid(np.expand_dims(targets[0], axis=0), png_prefix + '_target.png', drange=[-1 ,1])
     proj.start(targets)
     while proj.get_cur_step() < proj.num_steps:
         proj.step()
         imgout = misc.convert_to_pil_image(misc.create_image_grid(proj.get_images(), None), drange=[-1 ,1]).resize((512, 512))
         if proj.get_cur_step() % 10 == 0 and out_widget is not None:
-            out_widget.clear_output()
-            with out_widget:
-                display(imgout)
+            if out_widget is not None:
+                out_widget.clear_output()
+                with out_widget:
+                    display(imgout)
+            if out_widget_dlat is not None:
+                out_widget_dlat.clear_output()
+                with out_widget_dlat:
+                    plot_dlat_fancy(proj.get_dlatents()[0][:8], proj._dlatent_avg[0, 0], proj._dlatent_std[0, 0])
 
         write_video_frame(imgout, video_out)
         if proj.get_cur_step() in snapshot_steps:
@@ -95,7 +100,20 @@ def plot_dlat(dlat):
     plt.plot(dlat[lids].T, linestyle='', marker='.', alpha=0.2, markersize=5, antialiased=True)
     # plt.hlines([-2, 2.], xmin=0, xmax=512, colors='k')
     plt.xlim(0, 512)
-    plt.ylim(-1.1, 5.1)
+    plt.show()
+
+
+def plot_dlat_fancy(dlat, dlat_avg, dlat_std, figsize=(8, 5)):
+    fig, ax = plt.subplots()
+    fig.set_figheight(figsize[1])
+    fig.set_figwidth(figsize[0])
+    upper_dlat = dlat_avg + dlat_std
+    lower_dlat = dlat_avg - dlat_std
+    # plt.plot(upper_dlat.T, linestyle='', color='c', marker='.', alpha=0.9, markersize=4,  antialiased=True)
+    # plt.plot(lower_dlat.T, linestyle='', color='c', marker='.', alpha=0.9, markersize=4, antialiased=True)
+    ax.fill_between(range(512), lower_dlat, upper_dlat, antialiased=True, alpha=0.3)
+    plt.plot(dlat.T, linestyle='', color='r', marker='.', alpha=0.7, markersize=3, antialiased=True)
+    plt.xlim(0, 512)
     plt.show()
 
 
