@@ -60,7 +60,7 @@ def wass_dist_mean(dlat, dlat_vec):
 
 def gather_direc(direcs):
     direc = None
-    for sln, sl in WidgetRepo.sliders.items():
+    for sln, sl in wrepo.sliders.items():
         if direc is None:
             direc = sl.value * direcs[sln]
         else:
@@ -86,9 +86,9 @@ def on_value_change(change):
     except:
         newval = change
     direc = gather_direc()
-    dlat = ust.lerp_dir_dlats(WidgetRepo.dlat, direc, [WidgetRepo.slider_coef.value], layer_indices=wrepo.lids)
-    WidgetRepo.dlat_plot.clear_output()
-    with WidgetRepo.dlat_plot:
+    dlat = ust.lerp_dir_dlats(wrepo.dlat, direc, [wrepo.slider_coef.value], layer_indices=wrepo.lids)
+    wrepo.dlat_plot.clear_output()
+    with wrepo.dlat_plot:
         plot_dlat(dlat[0][wrepo.lids])
 
     handle_render({})
@@ -120,33 +120,33 @@ def plot_dlat_fancy(dlat, dlat_avg, dlat_std, figsize=(8, 5)):
 
 def handle_render(obj):
     direc = gather_direc(wrepo.direcs)
-    dlats_n = ust.lerp_dir_dlats(wrepo.dlat, direc, [WidgetRepo.slider_coef.value], layer_indices=wrepo.lids)
+    dlats_n = ust.lerp_dir_dlats(wrepo.dlat, direc, [wrepo.slider_coef.value], layer_indices=wrepo.lids)
     images = wrepo.Gs.components.synthesis.run(np.array(dlats_n), **wrepo.Gs_syn_kwargs)
     images_pil = [Im.fromarray(img, 'RGB') for img in images]
-    WidgetRepo.image_out.clear_output()
-    with WidgetRepo.image_out:
+    wrepo.image_out.clear_output()
+    with wrepo.image_out:
         display(images_pil[0].resize((300, 300)))
 
 
 
 def create_ui():
-    WidgetRepo.btn_render = wdgts.Button(description='Render')
-    WidgetRepo.btn_render.on_click(handle_render)
+    wrepo.btn_render = wdgts.Button(description='Render')
+    wrepo.btn_render.on_click(handle_render)
 
-    WidgetRepo.sliders = create_sliders(list(wrepo.direcs.keys()))
-    WidgetRepo.slider_coef = wdgts.FloatSlider(value=0., min=-15., max=15, step=1, orientation='horizontal',
+    wrepo.sliders = create_sliders(list(wrepo.direcs.keys()))
+    wrepo.slider_coef = wdgts.FloatSlider(value=0., min=-15., max=15, step=1, orientation='horizontal',
                                                description='Shift')
-    WidgetRepo.slider_coef.observe(on_value_change, names='value')
+    wrepo.slider_coef.observe(on_value_change, names='value')
 
-    WidgetRepo.image_init_out = wdgts.Output()
-    WidgetRepo.image_out = wdgts.Output()
-    WidgetRepo.dlat_plot = wdgts.Output()
+    wrepo.image_init_out = wdgts.Output()
+    wrepo.image_out = wdgts.Output()
+    wrepo.dlat_plot = wdgts.Output()
 
     lay = wdgts.GridspecLayout(1, 2)
-    lay[0, 0] = wdgts.VBox([WidgetRepo.slider_coef, WidgetRepo.btn_render] + list(WidgetRepo.sliders.values()))
+    lay[0, 0] = wdgts.VBox([wrepo.slider_coef, wrepo.btn_render] + list(wrepo.sliders.values()))
     lay[0, 1] = wdgts.VBox(
-        [wdgts.HBox([WidgetRepo.image_init_out, WidgetRepo.image_out],
-                    layout=wdgts.Layout(width='650px', height='350px')), WidgetRepo.dlat_plot],
+        [wdgts.HBox([wrepo.image_init_out, wrepo.image_out],
+                    layout=wdgts.Layout(width='650px', height='350px')), wrepo.dlat_plot],
         layout=wdgts.Layout(width='650px'))
 
     return lay
