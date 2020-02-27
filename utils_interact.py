@@ -44,7 +44,7 @@ def project_image(proj, targets, png_prefix, num_snapshots, out_widget=None, out
 class WidgetRepo:
     def __init(self):
         self.isinit = True
-        self.wrepo.lids = range(10)
+        self.lids = range(10)
 
 wrepo = WidgetRepo
 
