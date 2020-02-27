@@ -95,7 +95,7 @@ def project_image(proj, targets, png_prefix, num_snapshots, out_widget=None, out
             if out_widget_dlat is not None:
                 out_widget_dlat.clear_output()
                 with out_widget_dlat:
-                    plot_dlat_fancy(proj.get_dlatents()[0][:8], proj._dlatent_avg[0, 0], proj._dlatent_std[0, 0])
+                    plot_dlat_fancy(proj.get_dlatents()[0], proj._dlatent_avg[0, 0], proj._dlatent_std[0, 0])
 
         write_video_frame(imgout, video_out)
         if proj.get_cur_step() in snapshot_steps:
@@ -140,7 +140,7 @@ def gather_direc(direcs):
 
 
 def create_sliders(names):
-    slily = wdgts.Layout(width='250px')
+    slily = wdgts.Layout(width='350px')
     res = {}
     for name in names:
         res[name] = wdgts.FloatSlider(value=0., min=-1., max=1., step=0.25, orientation='horizontal', description=name,
