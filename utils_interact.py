@@ -119,7 +119,7 @@ def plot_dlat_fancy(dlat, dlat_avg, dlat_std, figsize=(8, 5)):
 
 
 def handle_render(obj):
-    direc = gather_direc(wrepo.Gs)
+    direc = gather_direc(wrepo.direcs)
     dlats_n = ust.lerp_dir_dlats(wrepo.dlat, direc, [WidgetRepo.slider_coef.value], layer_indices=wrepo.lids)
     images = wrepo.Gs.components.synthesis.run(np.array(dlats_n), **wrepo.Gs_syn_kwargs)
     images_pil = [Im.fromarray(img, 'RGB') for img in images]
