@@ -202,7 +202,7 @@ def handle_render(obj):
 
 
 
-def create_ui():
+def create_ui(wrepo):
     wrepo.btn_render = wdgts.Button(description='Render')
     wrepo.btn_render.on_click(handle_render)
 
