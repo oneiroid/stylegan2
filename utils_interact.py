@@ -107,19 +107,16 @@ def project_image(proj, targets, png_prefix, num_snapshots, out_widget=None, out
 
 
 class WidgetRepo:
+
     def __init__(self):
         self.isinit = True
         self.lids = range(10)
         self.Gs = None
 
     def init_Gs(self):
-        if self.Gs is None:
-            network_pkl = 'gdrive:networks/stylegan2-ffhq-config-f.pkl'
-            _, _, self.Gs = pretrained_networks.load_networks(network_pkl)
-
+        network_pkl = 'gdrive:networks/stylegan2-ffhq-config-f.pkl'
+        _, _, self.Gs = pretrained_networks.load_networks(network_pkl)
         return self.Gs
-
-#wrepo = WidgetRepo
 
 
 def wass_dist_mean(dlat, dlat_vec):

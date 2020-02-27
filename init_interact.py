@@ -18,4 +18,4 @@ PATH_DIRS = './assets/dirs_dlat'
 #PATH_DLATS = './data/nato'
 PATH_DLATS = PATH_RESULTS
 
-ui_utils.wrepo = wrepo = ui_utils.WidgetRepo()
+wrepo = ui_utils.WidgetRepo()
