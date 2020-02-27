@@ -44,6 +44,7 @@ def project_image(proj, targets, png_prefix, num_snapshots, out_widget=None, out
 class WidgetRepo:
     def __init(self):
         self.isinit = True
+        self.wrepo.lids = range(10)
 
 wrepo = WidgetRepo
 
@@ -78,17 +79,17 @@ def create_sliders(names):
 
     return res
 
-lids = range(8)
+
 def on_value_change(change):
     try:
         newval = change.new
     except:
         newval = change
     direc = gather_direc()
-    dlat = ust.lerp_dir_dlats(WidgetRepo.dlat, direc, [WidgetRepo.slider_coef.value], layer_indices=lids)
+    dlat = ust.lerp_dir_dlats(WidgetRepo.dlat, direc, [WidgetRepo.slider_coef.value], layer_indices=wrepo.lids)
     WidgetRepo.dlat_plot.clear_output()
     with WidgetRepo.dlat_plot:
-        plot_dlat(dlat[0][lids])
+        plot_dlat(dlat[0][wrepo.lids])
 
     handle_render({})
 
@@ -97,7 +98,7 @@ def plot_dlat(dlat):
     ax, fig = plt.subplots()
     ax.set_figheight(5)
     ax.set_figwidth(8)
-    plt.plot(dlat[lids].T, linestyle='', marker='.', alpha=0.2, markersize=5, antialiased=True)
+    plt.plot(dlat[wrepo.lids].T, linestyle='', marker='.', alpha=0.2, markersize=5, antialiased=True)
     # plt.hlines([-2, 2.], xmin=0, xmax=512, colors='k')
     plt.xlim(0, 512)
     plt.show()
@@ -112,22 +113,20 @@ def plot_dlat_fancy(dlat, dlat_avg, dlat_std, figsize=(8, 5)):
     # plt.plot(upper_dlat.T, linestyle='', color='c', marker='.', alpha=0.9, markersize=4,  antialiased=True)
     # plt.plot(lower_dlat.T, linestyle='', color='c', marker='.', alpha=0.9, markersize=4, antialiased=True)
     ax.fill_between(range(512), lower_dlat, upper_dlat, antialiased=True, alpha=0.3)
-    plt.plot(dlat.T, linestyle='', color='r', marker='.', alpha=0.7, markersize=3, antialiased=True)
+    plt.plot(dlat[wrepo.lids].T, linestyle='', color='r', marker='.', alpha=0.7, markersize=3, antialiased=True)
     plt.xlim(0, 512)
     plt.show()
 
 
 def handle_render(obj):
     direc = gather_direc(wrepo.Gs)
-    dlats_n = ust.lerp_dir_dlats(wrepo.dlat, direc, [WidgetRepo.slider_coef.value], layer_indices=lids)
+    dlats_n = ust.lerp_dir_dlats(wrepo.dlat, direc, [WidgetRepo.slider_coef.value], layer_indices=wrepo.lids)
     images = wrepo.Gs.components.synthesis.run(np.array(dlats_n), **wrepo.Gs_syn_kwargs)
     images_pil = [Im.fromarray(img, 'RGB') for img in images]
     WidgetRepo.image_out.clear_output()
     with WidgetRepo.image_out:
         display(images_pil[0].resize((300, 300)))
 
-
-lids = range(8)
 
 
 def create_ui():
