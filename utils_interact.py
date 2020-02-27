@@ -85,7 +85,7 @@ def on_value_change(change):
         newval = change.new
     except:
         newval = change
-    direc = gather_direc()
+    direc = gather_direc(wrepo.direcs)
     dlat = ust.lerp_dir_dlats(wrepo.dlat, direc, [wrepo.slider_coef.value], layer_indices=wrepo.lids)
     wrepo.dlat_plot.clear_output()
     with wrepo.dlat_plot:
