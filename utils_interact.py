@@ -9,6 +9,71 @@ from io import BytesIO
 from scipy.stats import wasserstein_distance as wass_dist
 
 
+proj_presets = {
+    'best_p3': dnnlib.EasyDict(initial_learning_rate = 0.02,
+                                lr_rampdown_length = 0.55,
+                                lr_rampup_length = 0.05,
+                                coef_pixel_loss = 0.01,
+                                coef_mssim_loss = 1.5,
+                                coef_dlat_loss = .3,
+                                num_steps = 3000,
+                                verbose = True),
+    'best_p3_refine': dnnlib.EasyDict(initial_learning_rate = 0.01,
+                                      path_mask = './assets/masks/mask_1024.png',
+                                      lr_rampdown_length = 0.75,
+                                      lr_rampup_length = 0.01,
+                                      coef_pixel_loss = 0,
+                                      coef_mssim_loss = 1.5,
+                                      coef_dlat_loss = 0.05,
+                                      num_steps = 3000,
+                                      verbose = True),
+    'best_p3_refine1': dnnlib.EasyDict(initial_learning_rate = 0.03,
+                                      path_mask = './assets/masks/mask_1024.png',
+                                      lr_rampdown_length = 0.65,
+                                      lr_rampup_length = 0.01,
+                                      coef_pixel_loss = 0,
+                                      coef_mssim_loss = 1.,
+                                      coef_dlat_loss = 0.08,
+                                      num_steps = 1000,
+                                      verbose = True),
+    'best_p3_refine2': dnnlib.EasyDict(initial_learning_rate = 0.03,
+                                      path_mask = './assets/masks/mask_1024_enh.png',
+                                      lr_rampdown_length = 0.65,
+                                      lr_rampup_length = 0.01,
+                                      coef_pixel_loss = 0,
+                                      coef_mssim_loss = 2.,
+                                      coef_dlat_loss = 0.2,
+                                      num_steps = 1000,
+                                      verbose = True),
+    'p1': dnnlib.EasyDict(initial_learning_rate = 0.2,
+                          lr_rampdown_length = 0.65,
+                          lr_rampup_length = 0.05,
+                          coef_pixel_loss = 0,
+                          coef_mssim_loss = 1.5,
+                          coef_dlat_loss = .05,
+                          num_steps = 1000,
+                          verbose = True),
+    'p2': dnnlib.EasyDict(initial_learning_rate = 0.1,
+                          lr_rampdown_length = 0.45,
+                          lr_rampup_length = 0.05,
+                          coef_pixel_loss = 0.01,
+                          coef_mssim_loss = 1.,
+                          coef_dlat_loss = .1,
+                          num_steps = 1000,
+                          verbose = True),
+    'p3': dnnlib.EasyDict(initial_learning_rate = 0.1,
+                          image_size = 512,
+                          path_mask = './assets/masks/mask_1024_softscaled.png',
+                          lr_rampdown_length = 0.75,
+                          lr_rampup_length = 0.05,
+                          coef_pixel_loss = 0.01,
+                          coef_mssim_loss = 1.,
+                          coef_dlat_loss = .5,
+                          num_steps = 1000,
+                          verbose = True)
+}
+
+
 def write_video_frame(img, video_out):
     video_frame = img.resize((512, 512))
     video_out.write(cv2.cvtColor(np.array(video_frame).astype('uint8'), cv2.COLOR_RGB2BGR))
@@ -45,8 +110,16 @@ class WidgetRepo:
     def __init(self):
         self.isinit = True
         self.lids = range(10)
+        self.Gs = None
 
-wrepo = WidgetRepo
+    def init_Gs(self):
+        if self.Gs is None:
+            network_pkl = 'gdrive:networks/stylegan2-ffhq-config-f.pkl'
+            _, _, self.Gs = pretrained_networks.load_networks(network_pkl)
+
+        return self.Gs
+
+#wrepo = WidgetRepo
 
 
 def wass_dist_mean(dlat, dlat_vec):
