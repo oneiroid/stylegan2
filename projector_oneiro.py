@@ -148,9 +148,10 @@ class Projector:
             self._loss += self.coef_mssim_loss * self._losses[-1]
 
         if self.coef_dlat_loss > 0:
-            weights = np.linspace(start=1., stop=.001, num=18, endpoint=True)
+            w = np.linspace(start=1., stop=.001, num=18, endpoint=True).reshape(18, 1)
+            w = np.expand_dims(np.repeat(w, 512, axis=1), axis=0)
             dlat_dist = tf.math.abs(self._dlatent_avg - self._dlatents_var) / self._dlatent_std
-            self._losses.append(tf.math.reduce_mean(dlat_dist * weights))
+            self._losses.append(tf.math.reduce_mean(dlat_dist * w))
             #self._losses.append(self.weighted_dlat_loss(self._dlatents_var))
             self._loss += self.coef_dlat_loss * self._losses[-1]
 
