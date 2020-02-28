@@ -19,3 +19,4 @@ PATH_DIRS = './assets/dirs_dlat'
 PATH_DLATS = PATH_RESULTS
 
 wrepo = ui_utils.WidgetRepo()
+ui_utils.wrepo = wrepo
