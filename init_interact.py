@@ -20,3 +20,5 @@ PATH_DLATS = PATH_RESULTS
 
 wrepo = ui_utils.WidgetRepo()
 ui_utils.wrepo = wrepo
+wrepo.init_Gs()
+out_void = Output()
