@@ -75,6 +75,16 @@ class Projector:
         dlatent_samples = self._Gs.components.mapping.run(latent_samples, None)  # [N, 1, 512]
         return dlatent_samples
 
+    def weighted_dlat_loss(self, dlat):
+        weights = np.linspace(start=1., stop=.001, num=18, endpoint=True)
+        dvec_avg = self._dlatent_avg[0, 0]
+        loss = 0
+        for i, dvec in enumerate(dlat[0]):
+            dvec_dist = tf.math.abs(dvec_avg - dlat[i])
+            loss += weights[i] * tf.math.reduce_mean(dvec_dist)
+
+        return loss
+
     def set_network(self, Gs, minibatch_size=1):
         assert minibatch_size == 1
         self._Gs = Gs
@@ -138,8 +148,9 @@ class Projector:
             self._loss += self.coef_mssim_loss * self._losses[-1]
 
         if self.coef_dlat_loss > 0:
-            dlat_dist = tf.math.abs(self._dlatent_avg - self._dlatents_var) / self._dlatent_std
-            self._losses.append(tf.math.reduce_mean(dlat_dist))
+            #dlat_dist = tf.math.abs(self._dlatent_avg - self._dlatents_var) / self._dlatent_std
+            #self._losses.append(tf.math.reduce_mean(dlat_dist))
+            self._losses.append(self.weighted_dlat_loss(self._dlatents_var))
             self._loss += self.coef_dlat_loss * self._losses[-1]
 
         clip_mask_dlat = tf.math.logical_or(self._dlatents_var > self._dlatent_avg + self._dlatent_std * 1.5,
