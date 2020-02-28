@@ -84,10 +84,13 @@ def project_image(proj, targets, png_prefix, num_snapshots, out_widget=None, out
     snapshot_steps = set(proj.num_steps - np.linspace(0, proj.num_steps, num_snapshots, endpoint=False, dtype=int))
     #misc.save_image_grid(np.expand_dims(targets[0], axis=0), png_prefix + '_target.png', drange=[-1 ,1])
     proj.start(targets)
+
     while proj.get_cur_step() < proj.num_steps:
         proj.step()
         imgout = misc.convert_to_pil_image(misc.create_image_grid(proj.get_images(), None), drange=[-1 ,1]).resize((512, 512))
-        if proj.get_cur_step() % 10 == 0 and out_widget is not None:
+        if proj.get_cur_step() % 10 == 0:
+            wdist = wass_dist_mean(proj.get_dlatents()[0], proj._dlatent_avg[0, 0])
+            print(f'WDIST: {wdist}')
             if out_widget is not None:
                 out_widget.clear_output()
                 with out_widget:
