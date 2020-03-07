@@ -115,11 +115,42 @@ class WidgetRepo:
         self.isinit = True
         self.lids = range(10)
         self.Gs = None
+        self.direcs = {}
 
     def init_Gs(self):
         network_pkl = 'gdrive:networks/stylegan2-ffhq-config-f.pkl'
         _, _, self.Gs = pretrained_networks.load_networks(network_pkl)
         return self.Gs
+
+
+def prepare_play():
+    global PATH_DIRS, PATH_DLATS, wrepo
+
+    wrepo.Gs_syn_kwargs = dnnlib.EasyDict()
+    wrepo.Gs_syn_kwargs.output_transform = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
+    wrepo.Gs_syn_kwargs.randomize_noise = False
+    for pth in pathlib.PosixPath(PATH_DIRS).glob('*.npy'):
+        dname = pth.name.replace('.npy', '')
+        wrepo.direcs[dname] = np.load(str(pth))
+
+    dlats = [joblib.load(str(pth_dlat))[0] for pth_dlat in pathlib.PosixPath(PATH_DLATS).glob('*.jbl')]
+    wrepo.Gs_syn_kwargs.minibatch_size = len(dlats)
+    dlats = np.array(dlats)
+    wrepo.dlats = dlats
+    images_init = wrepo.Gs.components.synthesis.run(dlats, **wrepo.Gs_syn_kwargs)
+    wrepo.images_init_pil = [Im.fromarray(img, 'RGB') for img in images_init]
+    wrepo.cur_dlat_idx = 0
+    wrepo.dlat = dlats[wrepo.cur_dlat_idx]
+
+
+def start_play():
+    lay = create_ui(wrepo)
+    display(lay)
+    wrepo.Gs_syn_kwargs.minibatch_size = 1
+    handle_render({})
+    on_value_change(0)
+    with wrepo.image_init_out:
+        display(wrepo.images_init_pil[wrepo.cur_dlat_idx].resize((300, 300)))
 
 
 def wass_dist_mean(dlat, dlat_vec):
