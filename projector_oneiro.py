@@ -100,6 +100,8 @@ class Projector:
         dlatent_samples = self._Gs.components.mapping.run(latent_samples, None)
         self._dlatent_avg = np.mean(dlatent_samples, axis=0, keepdims=True)
         self._dlatent_std = np.std(dlatent_samples, axis=0, keepdims=True)
+        self._dlatent_max = np.max(dlatent_samples, axis=0, keepdims=True)
+        self._dlatent_min = np.min(dlatent_samples, axis=0, keepdims=True)
         #self._dlatent_std = (np.sum((dlatent_samples - self._dlatent_avg) ** 2) / self.dlatent_avg_samples) ** 0.5
         #self._mask_rgb_perc_np = np.reshape(img_mask.resize((self.img_size, self.img_size)), newshape=(1, self.img_size, self.img_size, 3)) / 255
 
@@ -155,8 +157,8 @@ class Projector:
             #self._losses.append(self.weighted_dlat_loss(self._dlatents_var))
             self._loss += self.coef_dlat_loss * self._losses[-1]
 
-        clip_mask_dlat = tf.math.logical_or(self._dlatents_var > self._dlatent_avg + self._dlatent_std * 2.,
-                                            self._dlatents_var < self._dlatent_avg - self._dlatent_std * 2.)
+        clip_mask_dlat = tf.math.logical_or(self._dlatents_var > self._dlatent_max,
+                                            self._dlatents_var < self._dlatent_min)
         clipped_dlat = tf.where(clip_mask_dlat, tf.random_normal(mean=self._dlatent_avg, stddev=self._dlatent_std, shape=self._dlatents_var.shape), self._dlatents_var)
         self._stochastic_clip_op = tf.assign(self._dlatents_var, clipped_dlat)
 
