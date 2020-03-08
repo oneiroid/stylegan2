@@ -124,16 +124,16 @@ class WidgetRepo:
 
 
 def prepare_play():
-    global PATH_DIRS, PATH_DLATS, wrepo
+    global wrepo
 
     wrepo.Gs_syn_kwargs = dnnlib.EasyDict()
     wrepo.Gs_syn_kwargs.output_transform = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
     wrepo.Gs_syn_kwargs.randomize_noise = False
-    for pth in pathlib.PosixPath(PATH_DIRS).glob('*.npy'):
+    for pth in pathlib.PosixPath(wrepo.PATH_DIRS).glob('*.npy'):
         dname = pth.name.replace('.npy', '')
         wrepo.direcs[dname] = np.load(str(pth))
 
-    dlats = [joblib.load(str(pth_dlat))[0] for pth_dlat in pathlib.PosixPath(PATH_DLATS).glob('*.jbl')]
+    dlats = [joblib.load(str(pth_dlat))[0] for pth_dlat in pathlib.PosixPath(wrepo.PATH_DLATS).glob('*.jbl')]
     wrepo.Gs_syn_kwargs.minibatch_size = len(dlats)
     dlats = np.array(dlats)
     wrepo.dlats = dlats
