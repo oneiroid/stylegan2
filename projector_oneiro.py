@@ -155,9 +155,9 @@ class Projector:
             #self._losses.append(self.weighted_dlat_loss(self._dlatents_var))
             self._loss += self.coef_dlat_loss * self._losses[-1]
 
-        clip_mask_dlat = tf.math.logical_or(self._dlatents_var > self._dlatent_avg + self._dlatent_std * 1.5,
-                                            self._dlatents_var < self._dlatent_avg - self._dlatent_std * 1.5)
-        clipped_dlat = tf.where(clip_mask_dlat, tf.random_normal(shape=self._dlatents_var.shape),  self._dlatents_var)
+        clip_mask_dlat = tf.math.logical_or(self._dlatents_var > self._dlatent_avg + self._dlatent_std * 2.,
+                                            self._dlatents_var < self._dlatent_avg - self._dlatent_std * 2.)
+        clipped_dlat = tf.where(clip_mask_dlat, tf.random_normal(mean=self._dlatent_avg, stddev=self._dlatent_std, shape=self._dlatents_var.shape), self._dlatents_var)
         self._stochastic_clip_op = tf.assign(self._dlatents_var, clipped_dlat)
 
         # Optimizer.
@@ -224,7 +224,6 @@ class Projector:
         res_lst = tflib.run([self._opt_step, self._loss] + self._losses, feed_dict)
         self._cur_step += 1
         if self._cur_step == self.num_steps or self._cur_step % 10 == 0:
-
             self._runlog.append([self._cur_step] + res_lst[1:])
             self._output_log.clear_output()
             with self._output_log:
