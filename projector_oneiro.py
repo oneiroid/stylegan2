@@ -203,7 +203,8 @@ class Projector:
         #tflib.set_vars({self._target_images_var: target_images_nhwc_masked, self._dlatents_var: np.tile(self._dlatent_avg, [self._minibatch_size, 1, 1])})
         tflib.set_vars({self._target_images_var: target_images_masked,
                         self._target_images_small_var: target_images_small_masked,
-                        self._dlatents_var: np.tile(self._dlatent_avg, [self._minibatch_size, 1, 1])})
+                        self._dlatents_var: (self._dlatent_min + self._dlatent_max) / 2.})
+        #np.tile(self._dlatent_avg, [self._minibatch_size, 1, 1])
         self._opt.reset_optimizer_state()
         self._cur_step = 0
         self._output_log = widgets.Output()
