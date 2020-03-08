@@ -161,7 +161,8 @@ class Projector:
                                             self._dlatents_var <= self._dlatent_min)
 
         #dlat_subst = tf.random_normal(mean=self._dlatent_avg, stddev=self._dlatent_std / 3., shape=self._dlatents_var.shape)
-        dlat_subst = self._dlatent_avg
+        #dlat_subst = self._dlatent_avg
+        dlat_subst = (self._dlatent_max + self._dlatent_min) / 2.
         clipped_dlat = tf.where(clip_mask_dlat, dlat_subst, self._dlatents_var)
         self._stochastic_clip_op = tf.assign(self._dlatents_var, clipped_dlat)
 
