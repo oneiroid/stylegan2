@@ -159,7 +159,10 @@ class Projector:
 
         clip_mask_dlat = tf.math.logical_or(self._dlatents_var >= self._dlatent_max,
                                             self._dlatents_var <= self._dlatent_min)
-        clipped_dlat = tf.where(clip_mask_dlat, tf.random_normal(mean=self._dlatent_avg, stddev=self._dlatent_std / 3., shape=self._dlatents_var.shape), self._dlatents_var)
+
+        #dlat_subst = tf.random_normal(mean=self._dlatent_avg, stddev=self._dlatent_std / 3., shape=self._dlatents_var.shape)
+        dlat_subst = self._dlatent_avg
+        clipped_dlat = tf.where(clip_mask_dlat, dlat_subst, self._dlatents_var)
         self._stochastic_clip_op = tf.assign(self._dlatents_var, clipped_dlat)
 
         # Optimizer.
