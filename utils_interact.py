@@ -98,7 +98,8 @@ def project_image(proj, targets, png_prefix, num_snapshots, out_widget=None, out
             if out_widget_dlat is not None:
                 out_widget_dlat.clear_output()
                 with out_widget_dlat:
-                    plot_dlat_fancy(proj.get_dlatents()[0], proj._dlatent_avg[0, 0], proj._dlatent_std[0, 0])
+                    plot_dlat_fancy_minmax(proj.get_dlatents()[0], proj._dlatent_avg[0, 0], proj._dlatent_min[0, 0], proj._dlatent_max[0, 0], lids = range(18))
+                    #plot_dlat_fancy(proj.get_dlatents()[0], proj._dlatent_avg[0], proj._dlatent_std[0, 0])
 
         write_video_frame(imgout, video_out)
         if proj.get_cur_step() in snapshot_steps:
@@ -215,12 +216,25 @@ def plot_dlat_fancy(dlat, dlat_avg, dlat_std, figsize=(8, 5)):
     fig, ax = plt.subplots()
     fig.set_figheight(figsize[1])
     fig.set_figwidth(figsize[0])
-    upper_dlat = dlat_avg + dlat_std
-    lower_dlat = dlat_avg - dlat_std
+    upper_dlat = dlat_avg + 2 * dlat_std
+    lower_dlat = dlat_avg - 2 * dlat_std
     # plt.plot(upper_dlat.T, linestyle='', color='c', marker='.', alpha=0.9, markersize=4,  antialiased=True)
     # plt.plot(lower_dlat.T, linestyle='', color='c', marker='.', alpha=0.9, markersize=4, antialiased=True)
     ax.fill_between(range(512), lower_dlat, upper_dlat, antialiased=True, alpha=0.3)
     plt.plot(dlat[wrepo.lids].T, linestyle='', color='r', marker='.', alpha=0.7, markersize=3, antialiased=True)
+    plt.xlim(0, 512)
+    plt.show()
+
+
+def plot_dlat_fancy_minmax(dlat, dlat_avg, dlat_min, dlat_max, lids=range(18), figsize=(8, 5)):
+    fig, ax = plt.subplots()
+    fig.set_figheight(figsize[1])
+    fig.set_figwidth(figsize[0])
+    upper_dlat = dlat_max
+    lower_dlat = dlat_min
+    ax.fill_between(range(512), lower_dlat, upper_dlat, color='c', antialiased=True, alpha=0.4)
+    plt.plot(dlat_avg.T, linestyle='-', color='b', marker='', alpha=.5, linewidth=1, antialiased=True)
+    plt.plot(dlat[lids].T, linestyle='', color='r', marker='.', alpha=0.2, markersize=4, antialiased=True)
     plt.xlim(0, 512)
     plt.show()
 
