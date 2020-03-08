@@ -152,6 +152,9 @@ def start_play():
     with wrepo.image_init_out:
         display(wrepo.images_init_pil[wrepo.cur_dlat_idx].resize((300, 300)))
 
+    with wrepo.out_seldlat:
+        ust.show_grid_i(wrepo.images_init_pil)
+
 
 def wass_dist_mean(dlat, dlat_vec):
     dists = []
@@ -232,8 +235,28 @@ def handle_render(obj):
         display(images_pil[0].resize((300, 300)))
 
 
+def on_dlat_selected(change):
+    try:
+        newval = change.new
+    except:
+        newval = change
+
+    wrepo.cur_dlat_idx = newval
+    wrepo.dlat = wrepo.dlats[wrepo.cur_dlat_idx]
+    handle_render({})
+
 
 def create_ui(wrepo):
+    wrepo.selector_dlat = wdgts.Dropdown(
+        options=[(f'dlat {i + 1}', i) for i in range(len(wrepo.dlats))],
+        value=0,
+        description='Selected dlat:',
+        disabled=False,
+    )
+    wrepo.selector_dlat.observe(on_dlat_selected, names='value')
+    wrepo.out_seldlat = wdgts.Output()
+    wrepo.selector_dlat_cont = wdgts.VBox(children=[wrepo.out_seldlat, wrepo.selector_dlat])
+
     wrepo.btn_render = wdgts.Button(description='Render')
     wrepo.btn_render.on_click(handle_render)
 
@@ -253,4 +276,6 @@ def create_ui(wrepo):
                     layout=wdgts.Layout(width='650px', height='350px')), wrepo.dlat_plot],
         layout=wdgts.Layout(width='650px'))
 
-    return lay
+    lay0 = wdgts.Accordion([wrepo.selector_dlat_cont, lay])
+
+    return lay0

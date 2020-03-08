@@ -134,13 +134,16 @@ def gen_img(latent_vector, generator, imsize=300):
     img = PIL.Image.fromarray(img_array, 'RGB')
     return img.resize((imsize, imsize))
 
-def show_grid_i(imgs):
-    fig,ax = plt.subplots(1, len(imgs), figsize=(30, 25), dpi=120)
+
+def show_grid_i(imgs, figsize=(15, 8), imgsize=300):
+    fig,ax = plt.subplots(1, len(imgs), figsize=figsize, dpi=120)
     for i in range(len(imgs)):
         ax[i].imshow(imgs[i])
     [x.axis('off') for x in ax]
     plt.show()
-    
+
+
+
 def show_grid(dlats, tr_psi=0.8, tr_dlat=None, do_show=True, imsize=300):
     imgs = []
     for i in range(dlats.shape[0]):
