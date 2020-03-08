@@ -113,7 +113,7 @@ class WidgetRepo:
 
     def __init__(self):
         self.isinit = True
-        self.lids = range(10)
+        self.lids = range(8)
         self.Gs = None
         self.direcs = {}
 
@@ -243,6 +243,7 @@ def on_dlat_selected(change):
 
     wrepo.cur_dlat_idx = newval
     wrepo.dlat = wrepo.dlats[wrepo.cur_dlat_idx]
+    wrepo.image_init_out.clear_output()
     with wrepo.image_init_out:
         display(wrepo.images_init_pil[wrepo.cur_dlat_idx].resize((300, 300)))
     handle_render({})
