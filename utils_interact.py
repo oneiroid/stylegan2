@@ -243,6 +243,8 @@ def on_dlat_selected(change):
 
     wrepo.cur_dlat_idx = newval
     wrepo.dlat = wrepo.dlats[wrepo.cur_dlat_idx]
+    with wrepo.image_init_out:
+        display(wrepo.images_init_pil[wrepo.cur_dlat_idx].resize((300, 300)))
     handle_render({})
 
 
