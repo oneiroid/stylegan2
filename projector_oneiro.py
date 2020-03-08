@@ -157,9 +157,9 @@ class Projector:
             #self._losses.append(self.weighted_dlat_loss(self._dlatents_var))
             self._loss += self.coef_dlat_loss * self._losses[-1]
 
-        clip_mask_dlat = tf.math.logical_or(self._dlatents_var > self._dlatent_max,
-                                            self._dlatents_var < self._dlatent_min)
-        clipped_dlat = tf.where(clip_mask_dlat, tf.random_normal(mean=self._dlatent_avg, stddev=self._dlatent_std, shape=self._dlatents_var.shape), self._dlatents_var)
+        clip_mask_dlat = tf.math.logical_or(self._dlatents_var >= self._dlatent_max,
+                                            self._dlatents_var <= self._dlatent_min)
+        clipped_dlat = tf.where(clip_mask_dlat, tf.random_normal(mean=self._dlatent_avg, stddev=self._dlatent_std / 3., shape=self._dlatents_var.shape), self._dlatents_var)
         self._stochastic_clip_op = tf.assign(self._dlatents_var, clipped_dlat)
 
         # Optimizer.
